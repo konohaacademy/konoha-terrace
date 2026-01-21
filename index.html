@@ -31,7 +31,6 @@
         const { useState, useEffect, useRef } = React;
 
         // --- Firebase Configuration ---
-        // 公開環境で動作するよう、以前ご提示いただいた設定を埋め込んでいます。
         const firebaseConfig = {
             apiKey: "AIzaSyCw4_fqIsqX7pokH8eG8pOBJmQx2oVI5B8",
             authDomain: "konoha-terrace.firebaseapp.com",
@@ -179,35 +178,34 @@
             );
         };
 
-        // --- Animal Illustration Component (Updated IDs) ---
+        // --- Animal Illustration Component (Updated with Gyazo Direct Links) ---
         const AnimalIllustration = ({ seed = 0 }) => {
-            const animalIds = [
-                "1E_9xwSVHPNgwzDNeawLPaJcr80KlRkpX", // 1
-                "128gqAbo-7tZ3Tx6lMMv803s-Qr7ugyfX", // 2
-                "1jx2MvGVvq6NiJ_qj_D6coutb05i7ERGZ", // 3
-                "1ECKCdQ-crBMnbjatwj9k063rDnfppaxD", // 4
-                "10g0OqZuvicFYXEl-epUNQ9xoO_bsLFD8", // 5
-                "1pd3ohU5IIPBZ66B_-HcwidKr1KGk_sTe", // 6
-                "17ZN2OCXJvkt76zY0DiG68hmZ7EGJfmRZ", // 7
-                "1OggJov_8i-X_fX4dKUjSSBttoOB1g_aM", // 8
-                "1jjf-I-7f_5f9MV7TsdJV_UO7VMbvgN0t", // 9
-                "1DQubZfMpKW9AdDOC_0ml4bd4LHi839XT", // 10
-                "1NGw-VtPHbKdP1PmkgLPAx-fhCvJN0jQT", // 11
-                "1xXdOiV7SWIOppcwZ3tIaQFMMWMIjnQTj", // 12
-                "1Mk-Nx1UmHg5YxLLGSX2TadwlcRgdSXCH", // 13
-                "169y9xhwOWhvK1kfVXOMriC45vcvi_imc", // 14
-                "1Va_mONQkmMnxYZOwN_twb-PveL4jS8JQ", // 15
-                "17o6c2pCOWwNvJ2iEd6NG1F_kn2UECvBS", // 16
-                "1gTHuLPyknlJ-FLQkH8EdKD5iplaMiQux", // 17
-                "1NWj4s03xS10dCy-4Ar_77r902zR5HAPY", // 18
-                "1GoBUY4Ks_Xr5Xt7_ciQIxjpkmufxhyYr", // 19
-                "1aCTvREdWDHz9vaRyFCAWsQnp8Ucb0Qth"  // 20
+            const animalImages = [
+                "https://i.gyazo.com/f6acad60ed2db9ebd0a5aee6c70d5c99.png",
+                "https://i.gyazo.com/11cb5886e0f697ccff3f762855694f68.png",
+                "https://i.gyazo.com/a74cb94cb14290cbbfb08c0a86c95325.png",
+                "https://i.gyazo.com/7a6b23e7f99745d16508c83e40ec7147.png",
+                "https://i.gyazo.com/28108d81a61c204d0a75768cf8b47d55.png",
+                "https://i.gyazo.com/29d0046ec343233c694d2d43c220a843.png",
+                "https://i.gyazo.com/6e8b99ed9ff12f952923abda4f3ff9f6.png",
+                "https://i.gyazo.com/ec1bd3a6962ecf1df112995013ed7669.png",
+                "https://i.gyazo.com/1be74ad5bfb4b73b550c2e26efb997d7.png",
+                "https://i.gyazo.com/521e4806a356937d2070ff5f0bb3d7b1.png",
+                "https://i.gyazo.com/1594c152eb8ec06d63c2565ce7df47e1.png",
+                "https://i.gyazo.com/1031cbc61d5262abff0411e181a1476f.png",
+                "https://i.gyazo.com/04952a57c770c3044b40f3e03f069e17.png",
+                "https://i.gyazo.com/05e87695ba04b832e61b0406440c5861.png",
+                "https://i.gyazo.com/65d8b5a1e1698e1a25338124bf1f7a95.png",
+                "https://i.gyazo.com/b7330188756464e33c028232b93d2049.png",
+                "https://i.gyazo.com/5dee1fa1337a6a2601f5d8185f917fd2.png",
+                "https://i.gyazo.com/5b6ea2db4eae4469e32399789787ac53.png",
+                "https://i.gyazo.com/fca38bdb9febd608ad69afc7d6051d52.png"
             ];
-            const id = animalIds[seed % animalIds.length];
+            const src = animalImages[seed % animalImages.length];
             return (
                 <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden border border-stone-100 shadow-inner">
                     <img 
-                        src={`https://drive.google.com/uc?export=view&id=${id}`} 
+                        src={src} 
                         alt="Animal" 
                         className="w-full h-full object-cover scale-110" 
                     />
@@ -215,7 +213,7 @@
             );
         };
 
-        const ANIMAL_COUNT = 20;
+        const ANIMAL_COUNT = 19; // Updated based on provided list
 
         function App() {
             const [user, setUser] = useState(null);
@@ -283,7 +281,6 @@
                     await auth.signInWithPopup(provider);
                 } catch (err) {
                     console.error("Login Error:", err);
-                    alert("ログインに失敗しました: " + err.message);
                     setLoading(false);
                 }
             };
