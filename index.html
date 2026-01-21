@@ -1,10 +1,114 @@
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCw4_fqIsqX7pokH8eG8pOBJmQx2oVI5B8",
-  authDomain: "konoha-terrace.firebaseapp.com",
-  projectId: "konoha-terrace",
-  storageBucket: "konoha-terrace.firebasestorage.app",
-  messagingSenderId: "250486346479",
-  appId: "1:250486346479:web:d0ea932f11de1e78ac011a",
-  measurementId: "G-B4YXDXHZ17"
-};
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コノハ・テラス</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .scale-in { animation: scaleIn 0.2s ease-out; }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-stone-50">
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Firebase 設定反映 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCw4_fqIsqX7pokH8eG8pOBJmQx2oVI5B8",
+            authDomain: "konoha-terrace.firebaseapp.com",
+            projectId: "konoha-terrace",
+            storageBucket: "konoha-terrace.firebasestorage.app",
+            messagingSenderId: "250486346479",
+            appId: "1:250486346479:web:d0ea932f11de1e78ac011a",
+            measurementId: "G-B4YXDXHZ17"
+        };
+
+        let auth, db, provider;
+        let isConfigLoaded = false;
+
+        const initializeFirebase = () => {
+            try {
+                // 環境変数か手動設定かを確認
+                let config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+                
+                if (config && config.apiKey) {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(config);
+                    }
+                    auth = firebase.auth();
+                    db = firebase.firestore();
+                    provider = new firebase.auth.GoogleAuthProvider();
+                    isConfigLoaded = true;
+                    return true;
+                }
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+            }
+            return false;
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'konoha-terrace-v12';
+
+        const Icons = {
+            Leaf: ({ size = 24, fill = "none" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 3.5 1 9.8a7 7 0 0 1-9 8.2Zm0 0v-5m-4.5-1.5L11 15"/></svg>
+            ),
+            BookOpen: ({ size = 24 }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            ),
+            Trophy: ({ size = 24 }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            ),
+            User: ({ size = 24 }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            ),
+            Plus: ({ size = 24 }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            ),
+            Settings: ({ size = 24 }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2a2 2 0 0 1-2 2a2 2 0 0 0-2 2a2 2 0 0 1-2 2a2 2 0 0 0-2 2v.44a2 2 0 0 0 2 2a2 2 0 0 1 2 2a2 2 0 0 0 2 2a2 2 0 0 1 2 2a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2a2 2 0 0 1 2-2a2 2 0 0 0 2-2a2 2 0 0 1 2-2a2 2 0 0 0 2-2v-.44a2 2 0 0 0-2-2a2 2 0 0 1-2-2a2 2 0 0 0-2-2a2 2 0 0 1-2-2a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
+            ),
+            Send: ({ size = 20 }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            )
+        };
+
+        const AnimalIllustration = ({ seed = 0 }) => {
+            const animalIds = [
+                "1E_9xwSVHPNgwzDNeawLPaJcr80KlRkpX", "128gqAbo-7tZ3Tx6lMMv803s-Qr7ugyfX",
+                "1jx2MvGVvq6NiJ_qj_D6coutb05i7ERGZ", "17ZN2OCXJvkt76zY0DiG68hmZ7EGJfmRZ",
+                "1pd3ohU5IIPBZ66B_-HcwidKr1KGk_sTe", "16X7JFcv4azrLOBggA5AEYt52XHjNj2ay",
+                "1OggJov_8i-X_fX4dKUjSSBttoOB1g_aM", "1jjf-I-7f_5f9MV7TsdJV_UO7VMbvgN0t",
+                "1ECKCdQ-crBMnbjatwj9k063rDnfppaxD", "1DQubZfMpKW9AdDOC_0ml4bd4LHi839XT"
+            ];
+            const id = animalIds[seed % animalIds.length];
+            return (
+                <div className="w-full h-full rounded-full bg-stone-50 flex items-center justify-center overflow-hidden border border-stone-100">
+                    <img src={`https://drive.google.com/uc?export=view&id=${id}`} alt="Animal" className="w-full h-full object-cover" />
+                </div>
+            );
+        };
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [profile, setProfile] = useState(null);
+            const [view, setView] = useState('feed');
+            const [loading, setLoading] = useState(true);
+            const [posts, setPosts] = useState([]);
+            const [profiles, setProfiles] = useState([]);
+            const
