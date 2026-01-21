@@ -1,547 +1,348 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithPopup,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithCustomToken,
-  signOut,
-  setPersistence,
-  browserLocalPersistence
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  doc, 
-  updateDoc,
-  increment,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-  query,
-  orderBy
-} from 'firebase/firestore';
-import { 
-  BookOpen, 
-  User, 
-  Trophy, 
-  Loader2, 
-  Leaf,
-  Plus,
-  ArrowLeft,
-  Send,
-  Settings,
-  BarChart3,
-  Edit2,
-  LogIn,
-  LogOut,
-  ImageIcon,
-  Flower2,
-  Bird,
-  Bug,
-  X,
-  Info,
-  Calendar
-} from 'lucide-react';
-
-// --- Firebase Config ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'konoha-terrace-v12';
-
-/**
- * Animal Illustration Component
- */
-const AnimalIllustration = ({ seed = 0 }) => {
-  const uploadedAnimals = [
-    "https://lh3.googleusercontent.com/u/0/d/1E_9xwSVHPNgwzDNeawLPaJcr80KlRkpX",
-    "https://lh3.googleusercontent.com/u/0/d/128gqAbo-7tZ3Tx6lMMv803s-Qr7ugyfX",
-    "https://lh3.googleusercontent.com/u/0/d/1jx2MvGVvq6NiJ_qj_D6coutb05i7ERGZ",
-    "https://lh3.googleusercontent.com/u/0/d/17ZN2OCXJvkt76zY0DiG68hmZ7EGJfmRZ",
-    "https://lh3.googleusercontent.com/u/0/d/1pd3ohU5IIPBZ66B_-HcwidKr1KGk_sTe",
-    "https://lh3.googleusercontent.com/u/0/d/16X7JFcv4azrLOBggA5AEYt52XHjNj2ay",
-    "https://lh3.googleusercontent.com/u/0/d/1OggJov_8i-X_fX4dKUjSSBttoOB1g_aM",
-    "https://lh3.googleusercontent.com/u/0/d/1jjf-I-7f_5f9MV7TsdJV_UO7VMbvgN0t",
-    "https://lh3.googleusercontent.com/u/0/d/1ECKCdQ-crBMnbjatwj9k063rDnfppaxD",
-    "https://lh3.googleusercontent.com/u/0/d/1DQubZfMpKW9AdDOC_0ml4bd4LHi839XT",
-    "https://lh3.googleusercontent.com/u/0/d/169y9xhwOWhvK1kfVXOMriC45vcvi_imc",
-    "https://lh3.googleusercontent.com/u/0/d/1NGw-VtPHbKdP1PmkgLPAx-fhCvJN0jQT",
-    "https://lh3.googleusercontent.com/u/0/d/1Mk-Nx1UmHg5YxLLGSX2TadwlcRgdSXCH",
-    "https://lh3.googleusercontent.com/u/0/d/1Va_mONQkmMnxYZOwN_twb-PveL4jS8JQ",
-    "https://lh3.googleusercontent.com/u/0/d/1gTHuLPyknlJ-FLQkH8EdKD5iplaMiQux",
-    "https://lh3.googleusercontent.com/u/0/d/1xXdOiV7SWIOppcwZ3tIaQFMMWMIjnQTj",
-    "https://lh3.googleusercontent.com/u/0/d/17o6c2pCOWwNvJ2iEd6NG1F_kn2UECvBS",
-    "https://lh3.googleusercontent.com/u/0/d/1aCTvREdWDHz9vaRyFCAWsQnp8Ucb0Qth",
-    "https://lh3.googleusercontent.com/u/0/d/1GoBUY4Ks_Xr5Xt7_ciQIxjpkmufxhyYr",
-    "https://lh3.googleusercontent.com/u/0/d/1NWj4s03xS10dCy-4Ar_77r902zR5HAPY"
-  ];
-  
-  const imageUrl = uploadedAnimals[seed % uploadedAnimals.length];
-
-  return (
-    <div className="w-full h-full rounded-full overflow-hidden bg-white border border-stone-100 flex items-center justify-center relative">
-      <img 
-        src={imageUrl} 
-        alt="Animal Illustration" 
-        className="absolute inset-0 w-full h-full object-cover scale-110" 
-        onError={(e) => {
-          e.target.style.opacity = '0';
-        }}
-      />
-    </div>
-  );
-};
-
-const ANIMAL_COUNT = 20;
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [view, setView] = useState('feed'); 
-  const [loading, setLoading] = useState(true);
-  const [posts, setPosts] = useState([]);
-  const [profiles, setProfiles] = useState([]);
-  const [caption, setCaption] = useState('');
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [newName, setNewName] = useState('');
-  const timerRef = useRef(null);
-  const fileInputRef = useRef(null);
-
-  // --- Auth logic adjusted for Web Preview ---
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Set persistence to local for better web app behavior
-        await setPersistence(auth, browserLocalPersistence);
-
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        }
-      } catch (err) {
-        console.error("Auth Init Error:", err);
-      }
-    };
-    initAuth();
-
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        const pRef = doc(db, 'artifacts', appId, 'users', u.uid, 'profile', 'data');
-        const snap = await getDoc(pRef);
-        if (snap.exists()) {
-          setProfile(snap.data());
-        } else {
-          const initial = {
-            uid: u.uid, 
-            displayName: u.displayName || '庭の住人', 
-            totalSeconds: 0, 
-            postCount: 0, 
-            animalSeed: Math.floor(Math.random() * ANIMAL_COUNT), 
-            createdAt: serverTimestamp()
-          };
-          await setDoc(pRef, initial);
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', u.uid), initial);
-          setProfile(initial);
-        }
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    // Basic query without complex filtering for Rule 2
-    const postsQuery = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
-    const unsubPosts = onSnapshot(postsQuery, (s) => {
-      const data = s.docs.map(d => ({ id: d.id, ...d.data() }));
-      const sortedData = data.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
-        return timeB - timeA;
-      });
-      setPosts(sortedData);
-    }, (err) => console.error("Firestore Error:", err));
-
-    const unsubProfiles = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'profiles'), (s) => {
-      setProfiles(s.docs.map(d => d.data()).sort((a, b) => (b.totalSeconds || 0) - (a.totalSeconds || 0)));
-    }, (err) => console.error("Firestore Error:", err));
-
-    return () => { unsubPosts(); unsubProfiles(); };
-  }, [user]);
-
-  const handleLogin = async () => {
-    setLoading(true);
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error("Login Error:", err);
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    // Custom modal replacement for confirm()
-    if (window.confirm('ログアウトしますか？')) {
-      setLoading(true);
-      try {
-        await signOut(auth);
-        setView('feed');
-      } catch (err) {
-        console.error("Logout Error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => setSelectedImage(event.target.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleUpdateName = async () => {
-    if (!newName.trim() || !user) return;
-    const up = { displayName: newName };
-    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), up);
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid), up);
-    setProfile(prev => ({...prev, displayName: newName}));
-    setIsEditingName(false);
-  };
-
-  const handlePost = async () => {
-    if (!user || !profile || !caption.trim()) return;
-    const postData = {
-      userId: user.uid, userName: profile.displayName, animalSeed: profile.animalSeed || 0,
-      caption, studySeconds: timerSeconds, 
-      imageUrl: selectedImage || `https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800`,
-      createdAt: serverTimestamp()
-    };
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'posts'), postData);
-    
-    const up = { totalSeconds: increment(timerSeconds), postCount: increment(1) };
-    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), up);
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid), up);
-    
-    setCaption(''); setTimerSeconds(0); setIsTimerRunning(false); setSelectedImage(null);
-    if (timerRef.current) clearInterval(timerRef.current);
-    setView('feed');
-  };
-
-  const formatTimeFull = (s) => {
-    const hours = Math.floor(s / 3600);
-    const minutes = Math.floor((s % 3600) / 60);
-    const seconds = s % 60;
-    return `${hours > 0 ? hours + '時間' : ''}${minutes}分${seconds}秒`;
-  };
-
-  const formatDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-  };
-
-  if (loading) return <div className="h-screen flex items-center justify-center bg-stone-50"><Loader2 className="animate-spin text-emerald-800" /></div>;
-
-  if (!user) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-stone-50 p-6 text-center">
-        <div className="w-20 h-20 bg-emerald-900 rounded-3xl flex items-center justify-center text-white mb-6 shadow-xl">
-          <Leaf size={40} fill="currentColor" />
-        </div>
-        <h1 className="text-2xl font-black text-emerald-950 mb-2">コノハ・テラス</h1>
-        <p className="text-sm text-stone-500 mb-8 leading-relaxed">Googleアカウントでログインして、<br/>動物たちと学習の庭を育てましょう。</p>
-        <button onClick={handleLogin} className="flex items-center gap-3 bg-white border border-stone-200 px-8 py-4 rounded-full shadow-sm font-bold text-stone-700 active:scale-95 transition-all">
-          <LogIn size={20} className="text-emerald-700" />
-          Googleアカウントでログイン
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-stone-50 shadow-2xl overflow-hidden border-x border-stone-200 text-stone-900">
-      <header className="px-6 py-4 bg-white border-b border-stone-100 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('feed')}>
-          <div className="w-8 h-8 bg-emerald-900 rounded-lg flex items-center justify-center text-white"><Leaf size={16} fill="currentColor" /></div>
-          <h1 className="text-sm font-black text-emerald-950 uppercase tracking-tighter">Konoha Terrace</h1>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto pb-32">
-        {view === 'feed' && (
-          <div className="p-4 space-y-5">
-            {posts.length === 0 && (
-              <div className="text-center py-20">
-                <Leaf className="mx-auto text-stone-200 mb-4" size={48} />
-                <p className="text-stone-400 font-bold">まだ誰も庭に訪れていないようです</p>
-              </div>
-            )}
-            {posts.map(p => (
-              <div key={p.id} className="bg-white rounded-[2rem] border border-stone-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow scale-in">
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-stone-50 rounded-2xl overflow-hidden border border-stone-100">
-                      <AnimalIllustration seed={p.animalSeed} />
-                    </div>
-                    <div className="flex-1 text-xs font-black text-stone-800">{p.userName}</div>
-                  </div>
-                  <div className="text-[10px] font-bold text-stone-400 mr-2">{formatDate(p.createdAt)}</div>
-                </div>
-                <img src={p.imageUrl} className="aspect-[4/3] w-full object-cover" alt="study" />
-                <div className="p-5">
-                  <div className="bg-emerald-50 inline-block px-3 py-1 rounded-lg text-[10px] font-black text-emerald-900 mb-3 border border-emerald-100">
-                    ⏱ {formatTimeFull(p.studySeconds)}
-                  </div>
-                  <p className="text-[13px] text-stone-600 font-medium leading-relaxed">{p.caption}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {view === 'ranking' && (
-          <div className="p-6 space-y-4 scale-in">
-            <h2 className="text-lg font-black text-stone-800 mb-6 flex items-center gap-2"><Trophy className="text-amber-500" /> 学習時間ランキング</h2>
-            {profiles.map((p, i) => (
-              <div key={p.uid} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-stone-100 shadow-sm transition-transform active:scale-98">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${i < 3 ? 'bg-amber-400 text-white shadow-sm' : 'bg-stone-100 text-stone-400'}`}>{i + 1}</div>
-                <div className="w-14 h-14 bg-stone-50 rounded-2xl overflow-hidden"><AnimalIllustration seed={p.animalSeed} /></div>
-                <div className="flex-1">
-                  <p className="text-xs font-black text-stone-800">{p.displayName}</p>
-                  <p className="text-[10px] font-bold text-stone-400 mt-0.5">{formatTimeFull(p.totalSeconds || 0)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {view === 'post' && (
-          <div className="p-6 space-y-6 scale-in">
-            <div className="bg-gradient-to-br from-emerald-900 to-emerald-950 p-10 rounded-[2.5rem] text-center shadow-xl border-4 border-white">
-              <p className="text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-2">Focusing Now</p>
-              <h3 className="text-5xl font-mono font-black text-white mb-8 tracking-tighter">
-                {Math.floor(timerSeconds/60).toString().padStart(2,'0')}:{(timerSeconds%60).toString().padStart(2,'0')}
-              </h3>
-              <button onClick={() => {
-                if (isTimerRunning) { clearInterval(timerRef.current); } 
-                else { timerRef.current = setInterval(() => setTimerSeconds(s => s + 1), 1000); }
-                setIsTimerRunning(!isTimerRunning);
-              }} className={`w-full py-5 rounded-2xl font-black text-white shadow-lg transform active:scale-95 transition-all ${isTimerRunning ? 'bg-rose-500' : 'bg-emerald-600'}`}>
-                {isTimerRunning ? '学習を一時停止' : '学習を記録'}
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 flex flex-col items-center justify-center gap-2 p-6 bg-white border-2 border-dashed border-stone-200 rounded-2xl text-stone-400 hover:border-emerald-500 hover:text-emerald-600 transition-all"
-                >
-                  {selectedImage ? (
-                    <img src={selectedImage} className="w-full h-24 object-cover rounded-lg" alt="preview" />
-                  ) : (
-                    <>
-                      <ImageIcon size={24} />
-                      <span className="text-[10px] font-black uppercase">写真を投稿</span>
-                    </>
-                  )}
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-stone-400 uppercase ml-2">Comment</label>
-                <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="今日の手応え、学んだポイントなどをメモしましょう" className="w-full p-5 bg-white border border-stone-200 rounded-[1.5rem] outline-none text-sm min-h-[120px] shadow-inner focus:border-emerald-500 transition-colors" />
-              </div>
-            </div>
-            
-            <button onClick={handlePost} className="w-full py-5 bg-emerald-900 text-white rounded-full font-black shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"><Send size={20} /> 学習成果を報告する</button>
-          </div>
-        )}
-
-        {view === 'stats' && (
-          <div className="p-6 space-y-6 scale-in">
-            <h2 className="text-lg font-black text-stone-800 flex items-center gap-2"><BarChart3 className="text-emerald-600" /> 学習のあしあと</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
-                <p className="text-[10px] font-black text-stone-300 uppercase mb-1">今週の学習</p>
-                <p className="text-xl font-black text-emerald-950">{formatTimeFull(profile?.totalSeconds || 0)}</p>
-              </div>
-              <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
-                <p className="text-[10px] font-black text-stone-300 uppercase mb-1">記録回数</p>
-                <p className="text-xl font-black text-emerald-950">{profile?.postCount || 0}回</p>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
-              <h3 className="text-xs font-black text-stone-400 mb-4 flex items-center gap-2"><Calendar size={14}/> 直近の活動</h3>
-              <div className="space-y-3">
-                {posts.filter(p => p.userId === user.uid).slice(0, 5).map(p => (
-                  <div key={p.id} className="flex justify-between items-center text-xs border-b border-stone-50 pb-2">
-                    <span className="text-stone-400 font-bold">{formatDate(p.createdAt)}</span>
-                    <span className="text-emerald-700 font-black">{formatTimeFull(p.studySeconds)}</span>
-                  </div>
-                ))}
-                {posts.filter(p => p.userId === user.uid).length === 0 && (
-                  <p className="text-center text-[10px] text-stone-300 py-4">まだ自分の記録がありません</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {view === 'profile' && profile && (
-          <div className="p-6 space-y-6 scale-in">
-            <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-xl text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-24 bg-emerald-50 opacity-50 -z-10" />
-              <div className="w-40 h-40 bg-white rounded-[2.5rem] mx-auto mb-6 border-4 border-stone-50 p-3 shadow-lg"><AnimalIllustration seed={profile.animalSeed} /></div>
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <h2 className="text-2xl font-black text-stone-800">{profile.displayName}</h2>
-                <button onClick={() => {
-                  setNewName(profile.displayName);
-                  setIsEditingName(true);
-                }} className="p-2 text-stone-300 hover:text-emerald-600 transition-colors"><Edit2 size={16} /></button>
-              </div>
-
-              <div className="bg-stone-50/50 rounded-2xl p-4 mb-8">
-                <div className="flex justify-center gap-4 mb-4">
-                  <div className={`p-3 rounded-full border transition-all ${profile.postCount >= 1 ? 'bg-rose-100 border-rose-200 text-rose-600 scale-110 shadow-sm' : 'bg-stone-100 border-stone-200 text-stone-300 opacity-50'}`}>
-                    <Flower2 size={24} />
-                  </div>
-                  <div className={`p-3 rounded-full border transition-all ${profile.totalSeconds >= 3600 ? 'bg-sky-100 border-sky-200 text-sky-600 scale-110 shadow-sm' : 'bg-stone-100 border-stone-200 text-stone-300 opacity-50'}`}>
-                    <Bird size={24} />
-                  </div>
-                  <div className={`p-3 rounded-full border transition-all ${profile.postCount >= 10 ? 'bg-amber-100 border-amber-200 text-amber-600 scale-110 shadow-sm' : 'bg-stone-100 border-stone-200 text-stone-300 opacity-50'}`}>
-                    <Bug size={24} />
-                  </div>
-                </div>
-                
-                <div className="text-left space-y-2 border-t border-stone-200 pt-4">
-                  <h4 className="text-[10px] font-black text-stone-400 uppercase flex items-center gap-1"><Info size={12}/> 庭の生き物たちの進化条件</h4>
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-stone-100">
-                      <div className="flex items-center gap-2">
-                        <Flower2 size={12} className={profile.postCount >= 1 ? 'text-rose-500' : 'text-stone-300'} />
-                        <span className="text-[10px] font-bold text-stone-600">はじめての花</span>
-                      </div>
-                      <span className="text-[9px] font-medium text-stone-400">1回以上の投稿 ({profile.postCount}/1)</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-stone-100">
-                      <div className="flex items-center gap-2">
-                        <Bird size={12} className={profile.totalSeconds >= 3600 ? 'text-sky-500' : 'text-stone-300'} />
-                        <span className="text-[10px] font-bold text-stone-600">知恵の青い鳥</span>
-                      </div>
-                      <span className="text-[9px] font-medium text-stone-400">累計1時間学習 ({Math.floor(profile.totalSeconds/3600)}/1h)</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-stone-100">
-                      <div className="flex items-center gap-2">
-                        <Bug size={12} className={profile.postCount >= 10 ? 'text-amber-500' : 'text-stone-300'} />
-                        <span className="text-[10px] font-bold text-stone-600">勤勉なてんとう虫</span>
-                      </div>
-                      <span className="text-[9px] font-medium text-stone-400">10回以上の投稿 ({profile.postCount}/10)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-stone-50 p-5 rounded-[1.5rem] border border-stone-100 shadow-inner">
-                  <p className="text-[9px] font-black text-stone-400 uppercase mb-1">合計学習時間</p>
-                  <p className="text-sm font-black text-emerald-900">{formatTimeFull(profile.totalSeconds)}</p>
-                </div>
-                <div className="bg-stone-50 p-5 rounded-[1.5rem] border border-stone-100 shadow-inner">
-                  <p className="text-[9px] font-black text-stone-400 uppercase mb-1">投稿数</p>
-                  <p className="text-sm font-black text-emerald-900">{profile.postCount}回</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <button onClick={() => setView('settings')} className="w-full py-4 border border-stone-100 bg-stone-50/50 rounded-2xl text-[11px] font-black text-stone-500 flex items-center justify-center gap-2 hover:bg-white transition-all shadow-sm">
-                  <Settings size={16} /> アイコンを着替える
-                </button>
-                <button onClick={handleLogout} className="w-full py-4 border border-rose-50 bg-rose-50/30 rounded-2xl text-[11px] font-black text-rose-400 flex items-center justify-center gap-2 hover:bg-rose-50 transition-all shadow-sm">
-                  <LogOut size={16} /> ログアウト
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {view === 'settings' && (
-          <div className="p-6 space-y-4 scale-in">
-            <button onClick={() => setView('profile')} className="flex items-center gap-2 text-stone-500 font-black text-xs mb-6 hover:text-emerald-900"><ArrowLeft size={18}/> 戻る</button>
-            <div className="grid grid-cols-4 gap-4">
-              {Array.from({ length: ANIMAL_COUNT }).map((_, i) => (
-                <button key={i} onClick={async () => {
-                  await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), { animalSeed: i });
-                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid), { animalSeed: i });
-                  setProfile({...profile, animalSeed: i});
-                }} className={`p-2 rounded-2xl border-2 transition-all active:scale-90 aspect-square flex items-center justify-center ${profile.animalSeed === i ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-stone-100 bg-white'}`}>
-                  <div className="w-16 h-16">
-                    <AnimalIllustration seed={i} />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {isEditingName && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-xs rounded-[2rem] p-8 shadow-2xl scale-in">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-black text-stone-800">名前の変更</h3>
-              <button onClick={() => setIsEditingName(false)} className="text-stone-400 hover:text-stone-600"><X size={20}/></button>
-            </div>
-            <input 
-              type="text" 
-              value={newName} 
-              onChange={e => setNewName(e.target.value)}
-              className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl outline-none focus:border-emerald-500 transition-all font-bold mb-6"
-              placeholder="新しい名前を入力"
-              autoFocus
-            />
-            <button 
-              onClick={handleUpdateName}
-              className="w-full py-4 bg-emerald-900 text-white rounded-full font-black shadow-lg active:scale-95 transition-all"
-            >
-              保存する
-            </button>
-          </div>
-        </div>
-      )}
-
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-stone-100 px-6 py-4 flex justify-between items-center rounded-t-[2.5rem] shadow-lg z-50">
-        <button onClick={() => setView('feed')} className={`p-2 transition-all ${view === 'feed' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><BookOpen size={26}/></button>
-        <button onClick={() => setView('ranking')} className={`p-2 transition-all ${view === 'ranking' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><Trophy size={26}/></button>
-        <button onClick={() => setView('post')} className="w-14 h-14 bg-emerald-950 rounded-full flex items-center justify-center text-white -mt-12 border-4 border-stone-50 shadow-2xl active:scale-90 transition-all"><Plus size={30}/></button>
-        <button onClick={() => setView('stats')} className={`p-2 transition-all ${view === 'stats' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><BarChart3 size={26}/></button>
-        <button onClick={() => setView('profile')} className={`p-2 transition-all ${view === 'profile' || view === 'settings' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><User size={26}/></button>
-      </nav>
-
-      <style>{`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コノハ・テラス | Konoha Terrace</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
         .scale-in { animation: scaleIn 0.2s ease-out; }
         @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
-      `}</style>
-    </div>
-  );
-}
+        /* Custom scrollbar for a premium feel */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-stone-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Firebase modules from CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signInWithCustomToken, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, increment, setDoc, getDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        // --- Firebase Config ---
+        // 注意: 本番環境では環境変数などから読み込むのが一般的ですが、
+        // 今回のシングルファイル構成ではこのまま動作するように構成されています。
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'konoha-terrace-v12';
+
+        // Icons implementation using Lucide
+        const Icon = ({ name, size = 24, className = "" }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        const AnimalIllustration = ({ seed = 0 }) => {
+            const uploadedAnimals = [
+                "https://lh3.googleusercontent.com/u/0/d/1E_9xwSVHPNgwzDNeawLPaJcr80KlRkpX",
+                "https://lh3.googleusercontent.com/u/0/d/128gqAbo-7tZ3Tx6lMMv803s-Qr7ugyfX",
+                "https://lh3.googleusercontent.com/u/0/d/1jx2MvGVvq6NiJ_qj_D6coutb05i7ERGZ",
+                "https://lh3.googleusercontent.com/u/0/d/17ZN2OCXJvkt76zY0DiG68hmZ7EGJfmRZ",
+                "https://lh3.googleusercontent.com/u/0/d/1pd3ohU5IIPBZ66B_-HcwidKr1KGk_sTe",
+                "https://lh3.googleusercontent.com/u/0/d/16X7JFcv4azrLOBggA5AEYt52XHjNj2ay",
+                "https://lh3.googleusercontent.com/u/0/d/1OggJov_8i-X_fX4dKUjSSBttoOB1g_aM",
+                "https://lh3.googleusercontent.com/u/0/d/1jjf-I-7f_5f9MV7TsdJV_UO7VMbvgN0t",
+                "https://lh3.googleusercontent.com/u/0/d/1ECKCdQ-crBMnbjatwj9k063rDnfppaxD",
+                "https://lh3.googleusercontent.com/u/0/d/1DQubZfMpKW9AdDOC_0ml4bd4LHi839XT",
+                "https://lh3.googleusercontent.com/u/0/d/169y9xhwOWhvK1kfVXOMriC45vcvi_imc",
+                "https://lh3.googleusercontent.com/u/0/d/1NGw-VtPHbKdP1PmkgLPAx-fhCvJN0jQT",
+                "https://lh3.googleusercontent.com/u/0/d/1Mk-Nx1UmHg5YxLLGSX2TadwlcRgdSXCH",
+                "https://lh3.googleusercontent.com/u/0/d/1Va_mONQkmMnxYZOwN_twb-PveL4jS8JQ",
+                "https://lh3.googleusercontent.com/u/0/d/1gTHuLPyknlJ-FLQkH8EdKD5iplaMiQux",
+                "https://lh3.googleusercontent.com/u/0/d/1xXdOiV7SWIOppcwZ3tIaQFMMWMIjnQTj",
+                "https://lh3.googleusercontent.com/u/0/d/17o6c2pCOWwNvJ2iEd6NG1F_kn2UECvBS",
+                "https://lh3.googleusercontent.com/u/0/d/1aCTvREdWDHz9vaRyFCAWsQnp8Ucb0Qth",
+                "https://lh3.googleusercontent.com/u/0/d/1GoBUY4Ks_Xr5Xt7_ciQIxjpkmufxhyYr",
+                "https://lh3.googleusercontent.com/u/0/d/1NWj4s03xS10dCy-4Ar_77r902zR5HAPY"
+            ];
+            const imageUrl = uploadedAnimals[seed % uploadedAnimals.length];
+            return (
+                <div className="w-full h-full rounded-full overflow-hidden bg-white border border-stone-100 flex items-center justify-center relative">
+                    <img src={imageUrl} alt="Animal" className="absolute inset-0 w-full h-full object-cover scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
+                </div>
+            );
+        };
+
+        const ANIMAL_COUNT = 20;
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [profile, setProfile] = useState(null);
+            const [view, setView] = useState('feed'); 
+            const [loading, setLoading] = useState(true);
+            const [posts, setPosts] = useState([]);
+            const [profiles, setProfiles] = useState([]);
+            const [caption, setCaption] = useState('');
+            const [timerSeconds, setTimerSeconds] = useState(0);
+            const [isTimerRunning, setIsTimerRunning] = useState(false);
+            const [selectedImage, setSelectedImage] = useState(null);
+            const [isEditingName, setIsEditingName] = useState(false);
+            const [newName, setNewName] = useState('');
+            const timerRef = useRef(null);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        await setPersistence(auth, browserLocalPersistence);
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        }
+                    } catch (err) { console.error(err); }
+                };
+                initAuth();
+                const unsub = onAuthStateChanged(auth, async (u) => {
+                    setUser(u);
+                    if (u) {
+                        const pRef = doc(db, 'artifacts', appId, 'users', u.uid, 'profile', 'data');
+                        const snap = await getDoc(pRef);
+                        if (snap.exists()) {
+                            setProfile(snap.data());
+                        } else {
+                            const initial = { uid: u.uid, displayName: u.displayName || '庭の住人', totalSeconds: 0, postCount: 0, animalSeed: Math.floor(Math.random() * ANIMAL_COUNT), createdAt: serverTimestamp() };
+                            await setDoc(pRef, initial);
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', u.uid), initial);
+                            setProfile(initial);
+                        }
+                    } else { setProfile(null); }
+                    setLoading(false);
+                });
+                return () => unsub();
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                const unsubPosts = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'posts'), (s) => {
+                    const data = s.docs.map(d => ({ id: d.id, ...d.data() }));
+                    setPosts(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+                }, (error) => console.error(error));
+
+                const unsubProfiles = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'profiles'), (s) => {
+                    setProfiles(s.docs.map(d => d.data()).sort((a, b) => (b.totalSeconds || 0) - (a.totalSeconds || 0)));
+                }, (error) => console.error(error));
+
+                return () => { unsubPosts(); unsubProfiles(); };
+            }, [user]);
+
+            const handleLogin = async () => { setLoading(true); try { await signInWithPopup(auth, provider); } catch (err) { console.error(err); setLoading(false); } };
+            const handleLogout = async () => { if (confirm('ログアウトしますか？')) { setLoading(true); try { await signOut(auth); setView('feed'); } catch (err) { console.error(err); } finally { setLoading(false); } } };
+            const handleImageSelect = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (event) => setSelectedImage(event.target.result); reader.readAsDataURL(file); } };
+            
+            const handleUpdateName = async () => {
+                if (!newName.trim() || !user) return;
+                const up = { displayName: newName };
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), up);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid), up);
+                setProfile(prev => ({...prev, displayName: newName}));
+                setIsEditingName(false);
+            };
+
+            const handlePost = async () => {
+                if (!user || !profile || !caption.trim()) return;
+                const postData = { userId: user.uid, userName: profile.displayName, animalSeed: profile.animalSeed || 0, caption, studySeconds: timerSeconds, imageUrl: selectedImage || `https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800`, createdAt: serverTimestamp() };
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'posts'), postData);
+                const up = { totalSeconds: increment(timerSeconds), postCount: increment(1) };
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), up);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid), up);
+                setCaption(''); setTimerSeconds(0); setIsTimerRunning(false); setSelectedImage(null);
+                if (timerRef.current) clearInterval(timerRef.current);
+                setView('feed');
+            };
+
+            const formatTimeFull = (s) => {
+                const hours = Math.floor(s / 3600);
+                const minutes = Math.floor((s % 3600) / 60);
+                const seconds = s % 60;
+                return `${hours > 0 ? hours + '時間' : ''}${minutes}分${seconds}秒`;
+            };
+
+            const formatDate = (ts) => ts ? new Date(ts.seconds * 1000).toLocaleDateString('ja-JP') : '';
+
+            if (loading) return <div className="h-screen flex items-center justify-center bg-stone-50 text-emerald-800"><Icon name="loader-2" className="animate-spin" /></div>;
+
+            if (!user) {
+                return (
+                    <div className="h-screen flex flex-col items-center justify-center bg-stone-50 p-6 text-center">
+                        <div className="w-20 h-20 bg-emerald-900 rounded-3xl flex items-center justify-center text-white mb-6 shadow-xl"><Icon name="leaf" size={40} /></div>
+                        <h1 className="text-2xl font-black text-emerald-950 mb-2">コノハ・テラス</h1>
+                        <p className="text-sm text-stone-500 mb-8 leading-relaxed">Googleアカウントでログインして、<br/>動物たちと学習の庭を育てましょう。</p>
+                        <button onClick={handleLogin} className="flex items-center gap-3 bg-white border border-stone-200 px-8 py-4 rounded-full shadow-sm font-bold text-stone-700 active:scale-95 transition-all">
+                            <Icon name="log-in" size={20} className="text-emerald-700" /> Googleアカウントでログイン
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex flex-col h-screen max-w-md mx-auto bg-stone-50 shadow-2xl overflow-hidden border-x border-stone-200 text-stone-900 relative">
+                    <header className="px-6 py-4 bg-white border-b border-stone-100 flex justify-between items-center sticky top-0 z-50">
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('feed')}>
+                            <div className="w-8 h-8 bg-emerald-900 rounded-lg flex items-center justify-center text-white"><Icon name="leaf" size={16} /></div>
+                            <h1 className="text-sm font-black text-emerald-950 uppercase tracking-tighter">Konoha Terrace</h1>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 overflow-y-auto pb-32">
+                        {view === 'feed' && (
+                            <div className="p-4 space-y-5">
+                                {posts.length === 0 && <div className="text-center py-20"><Icon name="leaf" className="mx-auto text-stone-200 mb-4" size={48} /><p className="text-stone-400 font-bold">まだ誰も庭に訪れていないようです</p></div>}
+                                {posts.map(p => (
+                                    <div key={p.id} className="bg-white rounded-[2rem] border border-stone-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow scale-in">
+                                        <div className="p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-stone-50 rounded-2xl overflow-hidden border border-stone-100"><AnimalIllustration seed={p.animalSeed} /></div>
+                                                <div className="flex-1 text-xs font-black text-stone-800">{p.userName}</div>
+                                            </div>
+                                            <div className="text-[10px] font-bold text-stone-400 mr-2">{formatDate(p.createdAt)}</div>
+                                        </div>
+                                        <img src={p.imageUrl} className="aspect-[4/3] w-full object-cover" alt="study" />
+                                        <div className="p-5">
+                                            <div className="bg-emerald-50 inline-block px-3 py-1 rounded-lg text-[10px] font-black text-emerald-900 mb-3 border border-emerald-100">⏱ {formatTimeFull(p.studySeconds)}</div>
+                                            <p className="text-[13px] text-stone-600 font-medium leading-relaxed">{p.caption}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {view === 'ranking' && (
+                            <div className="p-6 space-y-4 scale-in">
+                                <h2 className="text-lg font-black text-stone-800 mb-6 flex items-center gap-2"><Icon name="trophy" className="text-amber-500" /> 学習時間ランキング</h2>
+                                {profiles.map((p, i) => (
+                                    <div key={p.uid} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-stone-100 shadow-sm">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${i < 3 ? 'bg-amber-400 text-white shadow-sm' : 'bg-stone-100 text-stone-400'}`}>{i + 1}</div>
+                                        <div className="w-14 h-14 bg-stone-50 rounded-2xl overflow-hidden"><AnimalIllustration seed={p.animalSeed} /></div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-black text-stone-800">{p.displayName}</p>
+                                            <p className="text-[10px] font-bold text-stone-400 mt-0.5">{formatTimeFull(p.totalSeconds || 0)}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {view === 'post' && (
+                            <div className="p-6 space-y-6 scale-in">
+                                <div className="bg-gradient-to-br from-emerald-900 to-emerald-950 p-10 rounded-[2.5rem] text-center shadow-xl border-4 border-white">
+                                    <p className="text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-2">Focusing Now</p>
+                                    <h3 className="text-5xl font-mono font-black text-white mb-8 tracking-tighter">
+                                        {Math.floor(timerSeconds/60).toString().padStart(2,'0')}:{(timerSeconds%60).toString().padStart(2,'0')}
+                                    </h3>
+                                    <button onClick={() => {
+                                        if (isTimerRunning) { clearInterval(timerRef.current); } 
+                                        else { timerRef.current = setInterval(() => setTimerSeconds(s => s + 1), 1000); }
+                                        setIsTimerRunning(!isTimerRunning);
+                                    }} className={`w-full py-5 rounded-2xl font-black text-white shadow-lg transform active:scale-95 transition-all ${isTimerRunning ? 'bg-rose-500' : 'bg-emerald-600'}`}>
+                                        {isTimerRunning ? '学習を一時停止' : '学習を記録'}
+                                    </button>
+                                </div>
+                                <div className="space-y-4">
+                                    <button onClick={() => fileInputRef.current?.click()} className="w-full flex flex-col items-center justify-center gap-2 p-6 bg-white border-2 border-dashed border-stone-200 rounded-2xl text-stone-400 hover:border-emerald-500 hover:text-emerald-600 transition-all">
+                                        {selectedImage ? <img src={selectedImage} className="w-full h-24 object-cover rounded-lg" alt="preview" /> : <><Icon name="image" size={24} /><span className="text-[10px] font-black uppercase">写真を投稿</span></>}
+                                    </button>
+                                    <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                                    <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="今日の手応え、学んだポイントなどをメモしましょう" className="w-full p-5 bg-white border border-stone-200 rounded-[1.5rem] outline-none text-sm min-h-[120px] shadow-inner focus:border-emerald-500 transition-colors" />
+                                </div>
+                                <button onClick={handlePost} className="w-full py-5 bg-emerald-900 text-white rounded-full font-black shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"><Icon name="send" size={20} /> 学習成果を報告する</button>
+                            </div>
+                        )}
+
+                        {view === 'stats' && (
+                            <div className="p-6 space-y-6 scale-in">
+                                <h2 className="text-lg font-black text-stone-800 flex items-center gap-2"><Icon name="bar-chart-3" className="text-emerald-600" /> 学習のあしあと</h2>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm"><p className="text-[10px] font-black text-stone-300 uppercase mb-1">現在の学習</p><p className="text-xl font-black text-emerald-950">{formatTimeFull(profile?.totalSeconds || 0)}</p></div>
+                                    <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm"><p className="text-[10px] font-black text-stone-300 uppercase mb-1">記録回数</p><p className="text-xl font-black text-emerald-950">{profile?.postCount || 0}回</p></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'profile' && profile && (
+                            <div className="p-6 space-y-6 scale-in">
+                                <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-xl text-center relative overflow-hidden">
+                                    <div className="w-40 h-40 bg-white rounded-[2.5rem] mx-auto mb-6 border-4 border-stone-50 p-3 shadow-lg"><AnimalIllustration seed={profile.animalSeed} /></div>
+                                    <div className="flex items-center justify-center gap-2 mb-1">
+                                        <h2 className="text-2xl font-black text-stone-800">{profile.displayName}</h2>
+                                        <button onClick={() => { setNewName(profile.displayName); setIsEditingName(true); }} className="p-2 text-stone-300 hover:text-emerald-600 transition-colors"><Icon name="edit-2" size={16} /></button>
+                                    </div>
+                                    <div className="space-y-2 mt-8">
+                                        <button onClick={() => setView('settings')} className="w-full py-4 border border-stone-100 bg-stone-50/50 rounded-2xl text-[11px] font-black text-stone-500 flex items-center justify-center gap-2 active:bg-stone-100 transition-colors"><Icon name="settings" size={16} /> アイコンを着替える</button>
+                                        <button onClick={handleLogout} className="w-full py-4 border border-rose-50 bg-rose-50/30 rounded-2xl text-[11px] font-black text-rose-400 flex items-center justify-center gap-2 active:bg-rose-100 transition-colors"><Icon name="log-out" size={16} /> ログアウト</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'settings' && (
+                            <div className="p-6 space-y-4 scale-in">
+                                <button onClick={() => setView('profile')} className="flex items-center gap-2 text-stone-500 font-black text-xs mb-6 active:translate-x-[-4px] transition-transform"><Icon name="arrow-left" size={18}/> 戻る</button>
+                                <div className="grid grid-cols-4 gap-4">
+                                    {Array.from({ length: ANIMAL_COUNT }).map((_, i) => (
+                                        <button key={i} onClick={async () => {
+                                            const update = { animalSeed: i };
+                                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), update);
+                                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid), update);
+                                            setProfile({...profile, animalSeed: i});
+                                        }} className={`p-2 rounded-2xl border-2 aspect-square flex items-center justify-center transition-all ${profile.animalSeed === i ? 'border-emerald-500 bg-emerald-50 shadow-md scale-105' : 'border-stone-100 bg-white'}`}>
+                                            <div className="w-16 h-16"><AnimalIllustration seed={i} /></div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {isEditingName && (
+                        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+                            <div className="bg-white w-full max-w-xs rounded-[2rem] p-8 shadow-2xl scale-in">
+                                <h3 className="text-lg font-black text-stone-800 mb-6">名前の変更</h3>
+                                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl mb-6 outline-none focus:border-emerald-500" autoFocus />
+                                <div className="flex gap-2">
+                                    <button onClick={() => setIsEditingName(false)} className="flex-1 py-4 bg-stone-100 text-stone-500 rounded-full font-black text-sm">キャンセル</button>
+                                    <button onClick={handleUpdateName} className="flex-2 py-4 bg-emerald-900 text-white rounded-full font-black text-sm px-6">保存する</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-stone-100 px-6 py-4 flex justify-between items-center rounded-t-[2.5rem] shadow-lg z-50">
+                        <button onClick={() => setView('feed')} className={`p-2 transition-all ${view === 'feed' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><Icon name="book-open" size={26}/></button>
+                        <button onClick={() => setView('ranking')} className={`p-2 transition-all ${view === 'ranking' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><Icon name="trophy" size={26}/></button>
+                        <button onClick={() => setView('post')} className="w-14 h-14 bg-emerald-950 rounded-full flex items-center justify-center text-white -mt-12 border-4 border-stone-50 shadow-2xl active:scale-90 transition-all"><Icon name="plus" size={30}/></button>
+                        <button onClick={() => setView('stats')} className={`p-2 transition-all ${view === 'stats' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><Icon name="bar-chart-3" size={26}/></button>
+                        <button onClick={() => setView('profile')} className={`p-2 transition-all ${view === 'profile' || view === 'settings' ? 'text-emerald-900 scale-110' : 'text-stone-300 hover:text-stone-400'}`}><Icon name="user" size={26}/></button>
+                    </nav>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
