@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>コノハ・テラス | Konoha Terrace</title>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS (Development Build) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & Libraries -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -18,7 +18,6 @@
             from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
         }
-        /* Custom scrollbar for a premium feel */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
@@ -27,7 +26,7 @@
 <body class="bg-stone-50">
     <div id="root"></div>
 
-    <!-- Firebase SDK via standard scripts -->
+    <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore-compat.js"></script>
@@ -35,20 +34,25 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
         
-        // --- Firebase Setup ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        if (!firebase.apps.length) {
+        // --- Firebase Safety Handling ---
+        // __firebase_config が未定義の場合のクラッシュを防止
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        } catch (e) {
+            console.warn("Firebase config not found or invalid.");
+        }
+
+        // Configが存在する場合のみ初期化
+        if (firebaseConfig.apiKey && !firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const provider = new firebase.auth.GoogleAuthProvider();
+
+        const auth = firebase.apps.length ? firebase.auth() : null;
+        const db = firebase.apps.length ? firebase.firestore() : null;
+        const provider = firebase.apps.length ? new firebase.auth.GoogleAuthProvider() : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'konoha-terrace-v12';
 
-        /**
-         * SVG-based Icons.
-         * Wrapping multiple SVG paths in <>...</> fragments to avoid SyntaxError.
-         */
         const Icon = ({ name, size = 24, className = "" }) => {
             const icons = {
                 'leaf': (
@@ -205,9 +209,12 @@
             const fileInputRef = useRef(null);
 
             useEffect(() => {
+                if (!auth) {
+                    setLoading(false);
+                    return;
+                }
                 const initAuth = async () => {
                     try {
-                        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await auth.signInWithCustomToken(__initial_auth_token);
                         }
@@ -216,7 +223,7 @@
                 initAuth();
                 const unsub = auth.onAuthStateChanged(async (u) => {
                     setUser(u);
-                    if (u) {
+                    if (u && db) {
                         const pRef = db.collection('artifacts').doc(appId).collection('users').doc(u.uid).collection('profile').doc('data');
                         const snap = await pRef.get();
                         if (snap.exists) {
@@ -234,7 +241,7 @@
             }, []);
 
             useEffect(() => {
-                if (!user) return;
+                if (!user || !db) return;
                 const unsubPosts = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('posts')
                     .onSnapshot((s) => {
                         const data = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -249,12 +256,25 @@
                 return () => { unsubPosts(); unsubProfiles(); };
             }, [user]);
 
-            const handleLogin = async () => { setLoading(true); try { await auth.signInWithPopup(provider); } catch (err) { console.error(err); setLoading(false); } };
-            const handleLogout = async () => { if (confirm('ログアウトしますか？')) { setLoading(true); try { await auth.signOut(); setView('feed'); } catch (err) { console.error(err); } finally { setLoading(false); } } };
+            const handleLogin = async () => { 
+                if (!auth) return;
+                setLoading(true); 
+                try { await auth.signInWithPopup(provider); } 
+                catch (err) { console.error(err); setLoading(false); } 
+            };
+            const handleLogout = async () => { 
+                if (!auth) return;
+                if (confirm('ログアウトしますか？')) { 
+                    setLoading(true); 
+                    try { await auth.signOut(); setView('feed'); } 
+                    catch (err) { console.error(err); } 
+                    finally { setLoading(false); } 
+                } 
+            };
             const handleImageSelect = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (event) => setSelectedImage(event.target.result); reader.readAsDataURL(file); } };
             
             const handleUpdateName = async () => {
-                if (!newName.trim() || !user) return;
+                if (!newName.trim() || !user || !db) return;
                 const up = { displayName: newName };
                 await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('profile').doc('data').update(up);
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('profiles').doc(user.uid).update(up);
@@ -263,7 +283,7 @@
             };
 
             const handlePost = async () => {
-                if (!user || !profile || !caption.trim()) return;
+                if (!user || !profile || !caption.trim() || !db) return;
                 const postData = { userId: user.uid, userName: profile.displayName, animalSeed: profile.animalSeed || 0, caption, studySeconds: timerSeconds, imageUrl: selectedImage || `https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800`, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('posts').add(postData);
                 
@@ -286,6 +306,16 @@
             const formatDate = (ts) => ts ? new Date(ts.seconds * 1000).toLocaleDateString('ja-JP') : '';
 
             if (loading) return <div className="h-screen flex items-center justify-center bg-stone-50 text-emerald-800"><Icon name="loader-2" className="animate-spin" /></div>;
+
+            if (!auth || !db) {
+                return (
+                    <div className="h-screen flex flex-col items-center justify-center bg-stone-50 p-6 text-center">
+                        <Icon name="leaf" size={48} className="text-rose-500 mb-4" />
+                        <h1 className="text-xl font-black text-stone-800 mb-2">接続エラー</h1>
+                        <p className="text-sm text-stone-500 leading-relaxed">Firebaseの設定が読み込めませんでした。<br/>Canvas環境外で実行している可能性があります。</p>
+                    </div>
+                );
+            }
 
             if (!user) {
                 return (
