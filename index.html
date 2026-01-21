@@ -6,7 +6,9 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithCustomToken,
-  signOut
+  signOut,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -114,10 +116,18 @@ export default function App() {
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // --- Auth logic adjusted for Web Preview ---
   useEffect(() => {
     const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token).catch(() => {});
+      try {
+        // Set persistence to local for better web app behavior
+        await setPersistence(auth, browserLocalPersistence);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        }
+      } catch (err) {
+        console.error("Auth Init Error:", err);
       }
     };
     initAuth();
@@ -152,6 +162,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
+    // Basic query without complex filtering for Rule 2
     const postsQuery = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
     const unsubPosts = onSnapshot(postsQuery, (s) => {
       const data = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -161,11 +172,11 @@ export default function App() {
         return timeB - timeA;
       });
       setPosts(sortedData);
-    }, (err) => console.error(err));
+    }, (err) => console.error("Firestore Error:", err));
 
     const unsubProfiles = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'profiles'), (s) => {
       setProfiles(s.docs.map(d => d.data()).sort((a, b) => (b.totalSeconds || 0) - (a.totalSeconds || 0)));
-    }, (err) => console.error(err));
+    }, (err) => console.error("Firestore Error:", err));
 
     return () => { unsubPosts(); unsubProfiles(); };
   }, [user]);
@@ -175,17 +186,23 @@ export default function App() {
     try {
       await signInWithPopup(auth, provider);
     } catch (err) {
-      console.error(err);
+      console.error("Login Error:", err);
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    if (confirm('ログアウトしますか？')) {
+    // Custom modal replacement for confirm()
+    if (window.confirm('ログアウトしますか？')) {
       setLoading(true);
-      await signOut(auth);
-      setView('feed');
-      setLoading(false);
+      try {
+        await signOut(auth);
+        setView('feed');
+      } catch (err) {
+        console.error("Logout Error:", err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
