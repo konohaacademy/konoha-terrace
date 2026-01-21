@@ -4,18 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>コノハ・テラス | Konoha Terrace</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
         body { font-family: 'Inter', 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; }
         .scale-in { animation: scaleIn 0.2s ease-out; }
-        @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="bg-stone-50 text-stone-900">
@@ -26,7 +22,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Firebase SDK (Compat Version for standalone HTML) -->
+    <!-- Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -34,9 +30,8 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- Firebase Config (Fixed for Production) ---
-        // 以前ご提示いただいた設定情報を埋め込んでいます。
-        // これにより、Netlify等の外部環境でも確実に動作します。
+        // --- Firebase Configuration ---
+        // 公開環境で動作するよう、以前ご提示いただいた設定を埋め込んでいます。
         const firebaseConfig = {
             apiKey: "AIzaSyCw4_fqIsqX7pokH8eG8pOBJmQx2oVI5B8",
             authDomain: "konoha-terrace.firebaseapp.com",
@@ -47,20 +42,18 @@
             measurementId: "G-B4YXDXHZ17"
         };
 
-        // Initialize Firebase safely
+        // Initialize Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
-        
-        // グローバルインスタンスの確保
         const auth = firebase.auth();
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
         
-        // アプリID（データベースのパス用）
+        // App ID for Firestore path
         const appId = 'konoha-terrace-v12';
 
-        // --- Icons ---
+        // --- Icons (SVG) ---
         const Icon = ({ name, size = 24, className = "" }) => {
             const icons = {
                 'leaf': (
@@ -186,17 +179,38 @@
             );
         };
 
+        // --- Animal Illustration Component (Updated IDs) ---
         const AnimalIllustration = ({ seed = 0 }) => {
             const animalIds = [
-                "1E_9xwSVHPNgwzDNeawLPaJcr80KlRkpX", "128gqAbo-7tZ3Tx6lMMv803s-Qr7ugyfX", "1jx2MvGVvq6NiJ_qj_D6coutb05i7ERGZ", "17ZN2OCXJvkt76zY0DiG68hmZ7EGJfmRZ", "1pd3ohU5IIPBZ66B_-HcwidKr1KGk_sTe",
-                "16X7JFcv4azrLOBggA5AEYt52XHjNj2ay", "1OggJov_8i-X_fX4dKUjSSBttoOB1g_aM", "1jjf-I-7f_5f9MV7TsdJV_UO7VMbvgN0t", "1ECKCdQ-crBMnbjatwj9k063rDnfppaxD", "1DQubZfMpKW9AdDOC_0ml4bd4LHi839XT",
-                "169y9xhwOWhvK1kfVXOMriC45vcvi_imc", "1NGw-VtPHbKdP1PmkgLPAx-fhCvJN0jQT", "1Mk-Nx1UmHg5YxLLGSX2TadwlcRgdSXCH", "1Va_mONQkmMnxYZOwN_twb-PveL4jS8JQ", "1gTHuLPyknlJ-FLQkH8EdKD5iplaMiQux",
-                "1xXdOiV7SWIOppcwZ3tIaQFMMWMIjnQTj", "17o6c2pCOWwNvJ2iEd6NG1F_kn2UECvBS", "1aCTvREdWDHz9vaRyFCAWsQnp8Ucb0Qth", "1GoBUY4Ks_Xr5Xt7_ciQIxjpkmufxhyYr", "1NWj4s03xS10dCy-4Ar_77r902zR5HAPY"
+                "1E_9xwSVHPNgwzDNeawLPaJcr80KlRkpX", // 1
+                "128gqAbo-7tZ3Tx6lMMv803s-Qr7ugyfX", // 2
+                "1jx2MvGVvq6NiJ_qj_D6coutb05i7ERGZ", // 3
+                "1ECKCdQ-crBMnbjatwj9k063rDnfppaxD", // 4
+                "10g0OqZuvicFYXEl-epUNQ9xoO_bsLFD8", // 5
+                "1pd3ohU5IIPBZ66B_-HcwidKr1KGk_sTe", // 6
+                "17ZN2OCXJvkt76zY0DiG68hmZ7EGJfmRZ", // 7
+                "1OggJov_8i-X_fX4dKUjSSBttoOB1g_aM", // 8
+                "1jjf-I-7f_5f9MV7TsdJV_UO7VMbvgN0t", // 9
+                "1DQubZfMpKW9AdDOC_0ml4bd4LHi839XT", // 10
+                "1NGw-VtPHbKdP1PmkgLPAx-fhCvJN0jQT", // 11
+                "1xXdOiV7SWIOppcwZ3tIaQFMMWMIjnQTj", // 12
+                "1Mk-Nx1UmHg5YxLLGSX2TadwlcRgdSXCH", // 13
+                "169y9xhwOWhvK1kfVXOMriC45vcvi_imc", // 14
+                "1Va_mONQkmMnxYZOwN_twb-PveL4jS8JQ", // 15
+                "17o6c2pCOWwNvJ2iEd6NG1F_kn2UECvBS", // 16
+                "1gTHuLPyknlJ-FLQkH8EdKD5iplaMiQux", // 17
+                "1NWj4s03xS10dCy-4Ar_77r902zR5HAPY", // 18
+                "1GoBUY4Ks_Xr5Xt7_ciQIxjpkmufxhyYr", // 19
+                "1aCTvREdWDHz9vaRyFCAWsQnp8Ucb0Qth"  // 20
             ];
             const id = animalIds[seed % animalIds.length];
             return (
-                <div className="w-full h-full rounded-full bg-stone-50 flex items-center justify-center overflow-hidden border border-stone-100 shadow-inner relative">
-                    <img src={`https://drive.google.com/uc?export=view&id=${id}`} alt="Animal" className="w-full h-full object-cover scale-110" />
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden border border-stone-100 shadow-inner">
+                    <img 
+                        src={`https://drive.google.com/uc?export=view&id=${id}`} 
+                        alt="Animal" 
+                        className="w-full h-full object-cover scale-110" 
+                    />
                 </div>
             );
         };
@@ -220,7 +234,6 @@
             const fileInputRef = useRef(null);
 
             useEffect(() => {
-                // 初回ロード時の認証状態チェック
                 const unsub = auth.onAuthStateChanged(async (u) => {
                     setUser(u);
                     if (u) {
@@ -333,7 +346,7 @@
                 const hours = Math.floor(s / 3600);
                 const minutes = Math.floor((s % 3600) / 60);
                 const seconds = s % 60;
-                return `${hours > 0 ? hours + '時間' : ''}${minutes}分${seconds}秒`;
+                return `${hours > 0 ? hours + '時間 ' : ''}${minutes}分 ${seconds}秒`;
             };
 
             const formatDate = (timestamp) => {
@@ -344,20 +357,19 @@
 
             if (loading) return <div className="h-screen flex items-center justify-center bg-stone-50 text-emerald-800"><Icon name="loader-2" className="animate-spin" /></div>;
 
-            if (!user) {
-                return (
-                    <div className="h-screen flex flex-col items-center justify-center bg-stone-50 p-6 text-center">
-                        <div className="w-20 h-20 bg-emerald-900 rounded-3xl flex items-center justify-center text-white mb-6 shadow-xl scale-in">
-                            <Icon name="leaf" size={40} fill="currentColor" />
-                        </div>
-                        <h1 className="text-2xl font-black text-emerald-950 mb-2">コノハ・テラス</h1>
-                        <p className="text-sm text-stone-500 mb-8 leading-relaxed">Googleアカウントでログインして、<br/>動物たちと学習の庭を育てましょう。</p>
-                        <button onClick={handleLogin} className="flex items-center gap-3 bg-white border border-stone-200 px-8 py-4 rounded-full shadow-sm font-bold text-stone-700 active:scale-95 transition-all">
-                            <Icon name="log-in" size={20} className="text-emerald-700" /> Googleアカウントでログイン
-                        </button>
+            if (!user) return (
+                <div className="h-screen flex flex-col items-center justify-center bg-stone-50 p-6 text-center">
+                    <div className="w-20 h-20 bg-emerald-900 rounded-3xl flex items-center justify-center text-white mb-6 shadow-xl scale-in">
+                        <Icon name="leaf" size={40} fill="currentColor" />
                     </div>
-                );
-            }
+                    <h1 className="text-2xl font-black text-emerald-950 mb-2">コノハ・テラス</h1>
+                    <p className="text-sm text-stone-500 mb-8 leading-relaxed">Googleアカウントでログインして、<br/>動物たちと学習の庭を育てましょう。</p>
+                    <button onClick={handleLogin} className="flex items-center gap-3 bg-white border border-stone-200 px-8 py-4 rounded-full shadow-sm font-bold text-stone-700 active:scale-95 hover:bg-stone-50 transition-all">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" />
+                        Googleアカウントで始める
+                    </button>
+                </div>
+            );
 
             return (
                 <div className="flex flex-col h-screen max-w-md mx-auto bg-stone-50 shadow-2xl overflow-hidden border-x border-stone-200 text-stone-900 relative">
@@ -385,7 +397,7 @@
                                         </div>
                                         <img src={p.imageUrl} className="w-full aspect-[4/3] object-cover" alt="study" />
                                         <div className="p-5">
-                                            <div className="bg-emerald-50 inline-block px-3 py-1 rounded-lg text-[10px] font-black text-emerald-900 mb-3 border border-emerald-100 uppercase tracking-widest">
+                                            <div className="bg-emerald-50 inline-block px-3 py-1 rounded-lg text-[10px] font-black text-emerald-900 mb-3 border border-emerald-100">
                                                 ⏱ {formatTimeFull(p.studySeconds)}
                                             </div>
                                             <p className="text-[13px] text-stone-600 font-medium leading-relaxed">{p.caption}</p>
@@ -423,7 +435,7 @@
                                         else { timerRef.current = setInterval(() => setTimerSeconds(s => s + 1), 1000); }
                                         setIsTimerRunning(!isTimerRunning);
                                     }} className={`w-full py-5 rounded-2xl font-black text-white shadow-lg transform active:scale-95 transition-all ${isTimerRunning ? 'bg-rose-500' : 'bg-emerald-600'}`}>
-                                        {isTimerRunning ? '学習を一時停止' : '学習を記録'}
+                                        {isTimerRunning ? '一時停止' : '学習を開始'}
                                     </button>
                                 </div>
                                 <div className="space-y-4">
